@@ -52,13 +52,29 @@ xianyu-ops/
 
 ### 后端
 
+**Linux / macOS:**
+
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install fastapi uvicorn sqlalchemy aiosqlite httpx playwright pydantic-settings apscheduler pytest
+pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+playwright install chromium          # 首次需安装浏览器二进制（L2 爬虫用）
+uvicorn app.main:app --reload --port 8000
+```
+
+> 如果 PowerShell 提示无法执行脚本，先运行一次：
+> `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
 ### 前端
 
@@ -68,6 +84,10 @@ npm install
 npx vite          # 开发模式 http://localhost:5173
 npx vite build    # 生产构建 → dist/
 ```
+
+> ⚠️ 如果 `npm install` 只装了 135 个包（缺 vite），说明 `NODE_ENV=production` 导致跳过了 devDependencies。修复：
+> - **Linux/macOS:** `NODE_ENV=development npm install`
+> - **Windows PowerShell:** `$env:NODE_ENV="development"; npm install`
 
 ### 环境变量（可选）
 
