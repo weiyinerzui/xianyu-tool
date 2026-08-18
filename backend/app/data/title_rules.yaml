@@ -1,0 +1,132 @@
+# 闲鱼标题优化规则库 v1
+# 来源：goofish-cli skills/goofish-publish-item/references/title-formula.md 转换
+#
+# 标题5段式公式：品牌 + 核心词 + 属性/规格 + 场景 + 情感
+# 长度约束：18-28字（含品牌词时上限可到30）
+
+# ============================================================
+# 标题5段式结构
+# ============================================================
+formula:
+  segments:
+    - id: "brand"
+      label: "品牌"
+      required: false
+      weight: 0.15
+      description: "品牌词（如有）。非授权品牌需注明正品/高仿"
+      examples: ["罗技", "小米", "无印良品"]
+    - id: "core_keyword"
+      label: "核心词"
+      required: true
+      weight: 0.35
+      description: "商品最核心的名称词，买家搜索量最大的词"
+      examples: ["机械键盘", "考研资料", "Python教程"]
+    - id: "attribute"
+      label: "属性/规格"
+      required: true
+      weight: 0.25
+      description: "型号、版本、容量、颜色、尺寸等规格信息"
+      examples: ["87键", "2026版", "3.12版本", "黑色"]
+    - id: "scene"
+      label: "场景"
+      required: false
+      weight: 0.15
+      description: "使用场景、适用人群、用途"
+      examples: ["学生党", "办公", "考研复习", "入门到精通"]
+    - id: "emotion"
+      label: "情感"
+      required: false
+      weight: 0.10
+      description: "成色、稀缺性、情感卖点（注意不能用违禁词）"
+      examples: ["95新", "现货", "急出", "少见"]
+
+# ============================================================
+# 长度约束
+# ============================================================
+length:
+  min: 18
+  max: 28
+  max_with_brand: 30
+  penalty_below_min: 0.6   # 低于最小长度的得分系数
+  penalty_above_max: 0.7   # 超过最大长度的得分系数
+
+# ============================================================
+# 关键词位置规则
+# ============================================================
+keyword_position:
+  core_keyword_front: true      # 核心词应前置（前1/3位置）
+  front_penalty: 0.7            # 核心词未前置的得分系数
+
+# ============================================================
+# 描述骨架（用于商品体检）
+# ============================================================
+desc_skeleton:
+  min_length: 100
+  ideal_length: 200
+  max_length: 400
+  structure:
+    - { id: "product_info", label: "商品信息", required: true, min_chars: 20 }
+    - { id: "condition", label: "成色/状态", required: true, min_chars: 10 }
+    - { id: "flaws", label: "瑕疵说明", required: false, min_chars: 10 }
+    - { id: "shipping", label: "发货说明", required: false, min_chars: 10 }
+    - { id: "bargain_policy", label: "砍价政策", required: false, min_chars: 5 }
+
+# ============================================================
+# 图片检查清单
+# ============================================================
+image_checklist:
+  hard_rules:
+    - { id: "first_image_1to1", label: "首图必须1:1正方形", required: true }
+    - { id: "max_9_images", label: "总图数≤9", required: true }
+    - { id: "no_stolen_image", label: "不能用网图/盗图（有反向搜图）", required: true }
+    - { id: "no_watermark", label: "不能含水印（LOGO/账号/链接）", required: true }
+    - { id: "no_contact_info", label: "不能含联系方式（二维码/手机号/微信号）", required: true }
+  soft_rules:
+    - { id: "min_3_images", label: "图≥3张", suggested: true }
+    - { id: "has_detail_shot", label: "至少1张实拍细节图", suggested: true }
+    - { id: "has_flaw_shot", label: "有瑕疵单独拍特写", suggested: true }
+
+# ============================================================
+# 发布红线检查清单（商品体检用）
+# ============================================================
+publish_red_lines:
+  - id: "price_cut_title_change"
+    label: "降价改标题=虚假促销"
+    check: "是否先改价格（降）再改标题"
+    severity: critical
+    impact: "流量-50%~-70%，严重时商品offline 24h"
+  - id: "wrong_category"
+    label: "类目错放"
+    check: "类目是否与商品实际类型匹配"
+    severity: high
+    impact: "降权-30%或直接下架"
+  - id: "image_non_compliant"
+    label: "图片不合规"
+    check: "首图1:1、≤9张、无水印/二维码"
+    severity: high
+    impact: "扣分或下架"
+  - id: "desc_too_short"
+    label: "描述过短或过泛"
+    check: "描述<30字或纯复制粘贴"
+    severity: medium
+    impact: "搜索权重低，不进推荐池"
+  - id: "price_deviation"
+    label: "价格明显偏离"
+    check: "与市场均价差>70%且无合理描述"
+    severity: high
+    impact: "进人工审核队列或下架"
+  - id: "duplicate_listing"
+    label: "连发同款"
+    check: "短时间发多件几乎相同商品"
+    severity: medium
+    impact: "职业卖家嫌疑，曝光打折"
+  - id: "frequent_edit"
+    label: "发布后频繁编辑"
+    check: "1小时内改≥3次"
+    severity: high
+    impact: "权重重置，错过初始流量池"
+  - id: "publish_frequency"
+    label: "发布频次超限"
+    check: "新号单日>10件/未实名>3件"
+    severity: high
+    impact: "限流+观察名单"

@@ -1,0 +1,283 @@
+# 闲鱼违禁词库 v1
+# 来源：goofish-cli skills/goofish-risk-guard 知识库转换
+# 分类说明：
+#   severity: block  = 必须删除/替换，否则拒绝发布
+#   severity: warn   = 建议修改，可能触发降权
+#   severity: info   = 提示性，需结合上下文判断
+#
+# 每个词条字段：
+#   word:        违禁词原文
+#   replacement: 推荐替换词（可选）
+#   note:        说明（可选）
+
+# ============================================================
+# 一类：绝对化用语（广告法红线，severity=block）
+# ============================================================
+absolute:
+  severity: block
+  words:
+    # 极限词
+    - { word: "最", replacement: "较", note: "广告法极限词" }
+    - { word: "最佳", replacement: "优质", note: "广告法极限词" }
+    - { word: "最好", replacement: "优质", note: "广告法极限词" }
+    - { word: "最优", replacement: "优质", note: "广告法极限词" }
+    - { word: "最优秀", replacement: "优质", note: "广告法极限词" }
+    - { word: "最大", replacement: "较大", note: "广告法极限词" }
+    - { word: "最小", replacement: "较小", note: "广告法极限词" }
+    - { word: "最高", replacement: "较高", note: "广告法极限词" }
+    - { word: "最低", replacement: "较低", note: "广告法极限词" }
+    - { word: "最便宜", replacement: "价格友好", note: "广告法极限词" }
+    - { word: "最贵", replacement: "较高价位", note: "广告法极限词" }
+    - { word: "最便利", replacement: "便捷", note: "广告法极限词" }
+    - { word: "最先进", replacement: "先进", note: "广告法极限词" }
+    - { word: "最流行", replacement: "流行", note: "广告法极限词" }
+    - { word: "最时尚", replacement: "时尚", note: "广告法极限词" }
+    - { word: "最潮", replacement: "潮流", note: "广告法极限词" }
+    - { word: "最牛", replacement: "不错", note: "广告法极限词" }
+    - { word: "最火", replacement: "热门", note: "广告法极限词" }
+    # 顶级词
+    - { word: "顶级", replacement: "高配", note: "顶级用语" }
+    - { word: "顶尖", replacement: "优质", note: "顶级用语" }
+    - { word: "顶配", replacement: "高配", note: "顶级用语" }
+    - { word: "极品", replacement: "优质", note: "顶级用语" }
+    - { word: "极致", replacement: "出色", note: "顶级用语" }
+    - { word: "绝佳", replacement: "不错", note: "顶级用语" }
+    - { word: "完美", replacement: "成色极佳", note: "顶级用语" }
+    - { word: "无敌", replacement: "出色", note: "顶级用语" }
+    - { word: "超级", replacement: "很", note: "顶级用语" }
+    - { word: "王牌", replacement: "主打", note: "顶级用语" }
+    - { word: "王者", replacement: "热门", note: "顶级用语" }
+    - { word: "独家", replacement: "较少见", note: "顶级用语" }
+    - { word: "独一无二", replacement: "小众", note: "顶级用语" }
+    # 第一
+    - { word: "第一", replacement: "推荐选择", note: "排名用语" }
+    - { word: "唯一", replacement: "少见", note: "排名用语" }
+    - { word: "No.1", replacement: "热门款", note: "排名用语" }
+    - { word: "Top1", replacement: "热门款", note: "排名用语" }
+    - { word: "全网第一", replacement: "热门款", note: "排名用语" }
+    - { word: "销量第一", replacement: "热门款", note: "排名用语" }
+    - { word: "排名第一", replacement: "热门款", note: "排名用语" }
+    - { word: "行业第一", replacement: "热门款", note: "排名用语" }
+    # 全网
+    - { word: "全网最低", replacement: "同类市价偏低", note: "全网用语" }
+    - { word: "全国最低", replacement: "价格友好", note: "全网用语" }
+    - { word: "全球最低", replacement: "价格友好", note: "全网用语" }
+    - { word: "全网首发", replacement: "新品上架", note: "全网用语" }
+    - { word: "全网最火", replacement: "热门", note: "全网用语" }
+    - { word: "全网最便宜", replacement: "价格友好", note: "全网用语" }
+    # 权威/国家级
+    - { word: "国家级", replacement: "", note: "权威用语" }
+    - { word: "国务院", replacement: "", note: "权威用语" }
+    - { word: "国家机关", replacement: "", note: "权威用语" }
+    - { word: "央视推荐", replacement: "", note: "权威用语" }
+    - { word: "中央电视台", replacement: "", note: "权威用语" }
+    - { word: "人民日报推荐", replacement: "", note: "权威用语" }
+    - { word: "行业领袖", replacement: "资深", note: "权威用语" }
+    # 虚假促销词
+    - { word: "亏本", replacement: "特价", note: "虚假促销" }
+    - { word: "亏本甩卖", replacement: "特价清仓", note: "虚假促销" }
+    - { word: "亏本清仓", replacement: "特价清仓", note: "虚假促销" }
+    - { word: "跳楼价", replacement: "特价", note: "虚假促销" }
+    # 绝对承诺
+    - { word: "绝对", replacement: "", note: "绝对承诺" }
+    - { word: "永久", replacement: "长期", note: "绝对承诺" }
+    - { word: "永远", replacement: "长期", note: "绝对承诺" }
+    - { word: "百分百", replacement: "", note: "绝对承诺" }
+    - { word: "100%", replacement: "", note: "绝对承诺" }
+    - { word: "包治", replacement: "有助于", note: "绝对承诺" }
+    - { word: "根治", replacement: "缓解", note: "绝对承诺" }
+    - { word: "彻底", replacement: "有效", note: "绝对承诺" }
+    - { word: "永不", replacement: "长期", note: "绝对承诺" }
+    - { word: "决不", replacement: "", note: "绝对承诺" }
+
+# ============================================================
+# 二类：外联/诱导线下（封号红线，severity=block）
+# ============================================================
+external_contact:
+  severity: block
+  words:
+    # 平台类
+    - { word: "微信", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "威信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "葳信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "维信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "围信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "薇信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "媺信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "V信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "VX", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "v信", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "Vx", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "vX", replacement: "闲鱼私信", note: "微信变体" }
+    - { word: "QQ", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "企鹅号", replacement: "闲鱼私信", note: "QQ变体" }
+    - { word: "扣扣", replacement: "闲鱼私信", note: "QQ变体" }
+    - { word: "Q号", replacement: "闲鱼私信", note: "QQ变体" }
+    - { word: "钉钉", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "飞书", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "探探", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "Telegram", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "TG", replacement: "闲鱼私信", note: "外联平台词" }
+    - { word: "小飞机", replacement: "闲鱼私信", note: "外联平台词" }
+    # 诱导动作类
+    - { word: "加我", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "加一下", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "加我好友", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "加v", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "加VX", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "+我", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "➕我", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "扣我", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "Q我", replacement: "闲鱼私信我", note: "诱导外联" }
+    - { word: "私聊", replacement: "闲鱼私信", note: "诱导外联" }
+    - { word: "私信", replacement: "闲鱼私信", note: "需结合上下文" }
+    - { word: "走微信", replacement: "走闲鱼担保", note: "绕过担保" }
+    - { word: "走支付宝", replacement: "走闲鱼担保", note: "绕过担保" }
+    - { word: "走转账", replacement: "走闲鱼担保", note: "绕过担保" }
+    - { word: "留号", replacement: "闲鱼私信联系", note: "诱导留联系方式" }
+    - { word: "留联系", replacement: "闲鱼私信联系", note: "诱导留联系方式" }
+    - { word: "留方式", replacement: "闲鱼私信联系", note: "诱导留联系方式" }
+    - { word: "发号", replacement: "闲鱼私信联系", note: "诱导留联系方式" }
+    - { word: "发我", replacement: "闲鱼私信联系", note: "诱导留联系方式" }
+    - { word: "搜我", replacement: "闲鱼私信联系", note: "诱导外联" }
+    - { word: "线下交易", replacement: "闲鱼担保交易", note: "绕过担保" }
+    - { word: "当面交易", replacement: "闲鱼担保交易", note: "绕过担保" }
+    - { word: "先付定金", replacement: "走闲鱼担保", note: "绕过担保" }
+
+# ============================================================
+# 三类：品牌侵权词（severity=warn，需授权或注明正品/仿品）
+# ============================================================
+brand_infringement:
+  severity: warn
+  words:
+    # 顶奢
+    - { word: "爱马仕", note: "需授权或注明正品凭证" }
+    - { word: "Hermes", note: "需授权或注明正品凭证" }
+    - { word: "路易威登", note: "需授权或注明正品凭证" }
+    - { word: "LV", note: "需授权或注明正品凭证" }
+    - { word: "Louis Vuitton", note: "需授权或注明正品凭证" }
+    - { word: "香奈儿", note: "需授权或注明正品凭证" }
+    - { word: "Chanel", note: "需授权或注明正品凭证" }
+    - { word: "古驰", note: "需授权或注明正品凭证" }
+    - { word: "Gucci", note: "需授权或注明正品凭证" }
+    - { word: "普拉达", note: "需授权或注明正品凭证" }
+    - { word: "Prada", note: "需授权或注明正品凭证" }
+    - { word: "迪奥", note: "需授权或注明正品凭证" }
+    - { word: "Dior", note: "需授权或注明正品凭证" }
+    # 潮牌
+    - { word: "Supreme", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Off-White", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Nike", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Adidas", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Yeezy", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Jordan", note: "仿品高发，需注明正品/高仿" }
+    - { word: "椰子", note: "仿品高发，需注明正品/高仿" }
+    - { word: "耐克", note: "仿品高发，需注明正品/高仿" }
+    - { word: "阿迪", note: "仿品高发，需注明正品/高仿" }
+    # 数码品牌
+    - { word: "Apple", note: "仿品高发，需注明正品/高仿" }
+    - { word: "苹果", note: "仿品高发，需注明正品/高仿" }
+    - { word: "iPhone", note: "仿品高发，需注明正品/高仿" }
+    - { word: "MacBook", note: "仿品高发，需注明正品/高仿" }
+    - { word: "索尼", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Sony", note: "仿品高发，需注明正品/高仿" }
+    - { word: "任天堂", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Nintendo", note: "仿品高发，需注明正品/高仿" }
+    - { word: "Switch", note: "仿品高发，需注明正品/高仿" }
+
+# ============================================================
+# 四类：医疗/保健夸大词（severity=block）
+# ============================================================
+medical_exaggeration:
+  severity: block
+  words:
+    - { word: "治愈", replacement: "缓解", note: "医疗夸大" }
+    - { word: "疗效", replacement: "效果", note: "医疗夸大" }
+    - { word: "特效", replacement: "有效", note: "医疗夸大" }
+    - { word: "痊愈", replacement: "改善", note: "医疗夸大" }
+    - { word: "治疗", replacement: "辅助", note: "医疗夸大" }
+    - { word: "医治", replacement: "辅助", note: "医疗夸大" }
+    - { word: "药到病除", replacement: "", note: "医疗夸大" }
+    - { word: "立竿见影", replacement: "见效较快", note: "医疗夸大" }
+    - { word: "神效", replacement: "有效", note: "医疗夸大" }
+    - { word: "奇效", replacement: "有效", note: "医疗夸大" }
+    - { word: "无副作用", replacement: "", note: "医疗夸大" }
+    - { word: "纯天然", replacement: "天然成分", note: "医疗夸大" }
+
+# ============================================================
+# 五类：擦边/敏感（severity=block）
+# ============================================================
+sensitive:
+  severity: block
+  words:
+    # 政治
+    - { word: "中央", note: "政治敏感" }
+    - { word: "人大", note: "政治敏感" }
+    - { word: "总理", note: "政治敏感" }
+    - { word: "主席", note: "政治敏感" }
+    - { word: "领导人", note: "政治敏感" }
+    # 擦边
+    - { word: "原味", note: "擦边敏感" }
+    - { word: "体液", note: "擦边敏感" }
+    - { word: "萝莉", note: "擦边敏感" }
+    - { word: "幼女", note: "擦边敏感" }
+    # 违禁品
+    - { word: "仿真枪", note: "违禁品" }
+    - { word: "弓弩", note: "违禁品" }
+    - { word: "电击", note: "违禁品" }
+    - { word: "易燃易爆", note: "违禁品" }
+    - { word: "毒品", note: "违禁品" }
+
+# ============================================================
+# 六类：虚假数据词（severity=warn）
+# ============================================================
+fake_data:
+  severity: warn
+  words:
+    - { word: "销量最高", replacement: "热门款", note: "闲鱼不显示销量，声称即误导" }
+    - { word: "销量爆款", replacement: "热门款", note: "闲鱼不显示销量" }
+    - { word: "月销10w+", replacement: "热门款", note: "闲鱼不显示销量" }
+    - { word: "月销10万", replacement: "热门款", note: "闲鱼不显示销量" }
+    - { word: "库存无限", replacement: "现货充足", note: "二手非标无库存概念" }
+    - { word: "永久供货", replacement: "长期供货", note: "二手非标无库存概念" }
+
+# ============================================================
+# 七类：虚拟商品专属违禁词（severity=block）
+# 针对：免费软件、软件教程、学习资料等虚拟商品
+# ============================================================
+virtual_goods:
+  severity: block
+  words:
+    - { word: "破解版", replacement: "免费版/开源版", note: "软件侵权" }
+    - { word: "破解", replacement: "开源替代", note: "软件侵权" }
+    - { word: "盗版", replacement: "开源/免费", note: "软件侵权" }
+    - { word: "注册机", replacement: "", note: "软件侵权" }
+    - { word: "激活码", replacement: "授权码", note: "需有合法授权" }
+    - { word: "序列号", replacement: "授权码", note: "需有合法授权" }
+    - { word: "破解补丁", replacement: "", note: "软件侵权" }
+    - { word: "外挂", replacement: "", note: "违规软件" }
+    - { word: "辅助", replacement: "工具", note: "需结合上下文，可能是外挂" }
+    - { word: "VPN", replacement: "网络工具", note: "违规软件" }
+    - { word: "翻墙", replacement: "", note: "违规" }
+    - { word: "科学上网", replacement: "", note: "违规" }
+    - { word: "代考", replacement: "", note: "违规" }
+    - { word: "代写", replacement: "范文参考", note: "学术诚信" }
+    - { word: "包过", replacement: "系统学习", note: "虚假承诺" }
+    - { word: "保过", replacement: "系统学习", note: "虚假承诺" }
+    - { word: "真题答案", replacement: "历年真题", note: "学术诚信" }
+    - { word: "考试答案", replacement: "复习资料", note: "学术诚信" }
+
+# ============================================================
+# 正则规则（用于变体检测，如手机号、QQ号、微信号变形）
+# ============================================================
+regex_rules:
+  - name: "手机号"
+    pattern: '1[3-9]\d{9}'
+    severity: warn
+    note: "11位手机号，需结合上下文判断是否为外联"
+    replacement: "闲鱼私信联系"
+  - name: "QQ号长串"
+    pattern: '[1-9]\d{6,11}'
+    severity: info
+    note: "可能是QQ号，需结合上下文含'Q'/'扣'等字判断"
+    replacement: "闲鱼私信联系"

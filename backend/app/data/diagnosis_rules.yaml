@@ -1,0 +1,284 @@
+# 闲鱼曝光诊断规则库 v1
+# 来源：goofish-cli skills/goofish-shop-diagnosis 知识库转换
+#
+# 归因清单按可能性从高到低排序，诊断时从头往下过。
+# 每条规则包含：症状、原因、证据字段、修复建议、评级（发生频率）
+
+# ============================================================
+# 流量掉 / 商品没曝光的归因清单
+# ============================================================
+traffic_drop_causes:
+  - id: "missed_initial_pool"
+    label: "错过24小时初始流量池"
+    probability: 0.40
+    severity: high
+    symptoms:
+      - "发布后第一天曝光还行，之后掉成0"
+    cause: "初始推荐窗口24小时内互动数据（点击/收藏/咨询）不够，不进下一级池"
+    evidence_fields:
+      - publish_hours
+      - exposure_trend
+    fix:
+      - "不要删除重发（会被标记为同款复活）"
+      - "可以编辑标题（24h后）尝试新关键词"
+      - "在描述里补细节、首图换更吸睛的"
+    note: "约40%流量掉由此引起"
+
+  - id: "price_cut_title_change"
+    label: "降价改标→虚假促销惩罚"
+    probability: 0.25
+    severity: critical
+    symptoms:
+      - "初期曝光正常，改价后突然掉"
+    cause: "系统检测'先降价再改标题'的组合→判定虚假促销→搜索权重-50%~70%"
+    evidence_fields:
+      - price_changed
+      - title_changed
+      - price_title_change_within_24h
+    fix:
+      - "静待7天权重恢复"
+      - "期间不要再改任何内容"
+    note: "约25%限流由此引起，最重的扣分项"
+
+  - id: "wrong_category"
+    label: "类目错放"
+    probability: 0.15
+    severity: high
+    symptoms:
+      - "搜核心词找不到商品"
+      - "搜更精准的长尾词能找到"
+    cause: "类目和商品实际类型不匹配→权重打折或进审核"
+    evidence_fields:
+      - current_category
+      - recommended_category
+      - category_mismatch
+    fix:
+      - "重新发布（删旧发新，而不是在原商品上改类目）"
+      - "注意删旧时机：不要短时间频繁删发"
+    note: "约15%"
+
+  - id: "poor_seo_title"
+    label: "标题没SEO优化"
+    probability: 0.20
+    severity: medium
+    symptoms:
+      - "搜通用词找不到，搜完整标题能找到"
+    cause: "标题缺品牌、缺核心词，关键词没前置，冷僻词多热门词少"
+    evidence_fields:
+      - title
+      - title_length
+      - has_brand
+      - has_core_keyword
+      - keyword_front_loaded
+    fix:
+      - "按5段式重写标题（品牌+核心词+属性+场景+情感）"
+      - "24h后改一次就好，不要频繁"
+    note: "约20%"
+
+  - id: "image_non_compliant"
+    label: "图片不合规/非1:1首图"
+    probability: 0.10
+    severity: medium
+    symptoms:
+      - "搜索排名不高，点击率低"
+    cause: "首图非1:1→推荐算法扣分；图片数量少→信任感低→点击率低"
+    evidence_fields:
+      - image_count
+      - first_image_ratio
+      - has_watermark
+    fix:
+      - "补图（尤其首图换1:1实拍）"
+      - "至少3张图，含1张实拍细节图"
+    note: "中频"
+
+  - id: "account_violation_history"
+    label: "外联词历史/违规记录"
+    probability: 0.08
+    severity: high
+    symptoms:
+      - "整个账号的所有商品都没流量（不只一件）"
+    cause: "账号本身被降权（闲气值<80）"
+    evidence_fields:
+      - account_health_score
+      - has_violation_record
+    fix:
+      - "本工具无法解，建议在App看'违规记录'"
+      - "一段时间内（7-30天）慎发、慎回复"
+    note: "中频"
+
+  - id: "price_unreasonable"
+    label: "价格明显不合市场"
+    probability: 0.07
+    severity: medium
+    symptoms:
+      - "曝光有但咨询0"
+    cause: "定价过高→买家看一眼就走；定价异常低→买家怀疑有坑"
+    evidence_fields:
+      - current_price
+      - market_avg_price
+      - price_deviation_ratio
+    fix:
+      - "调整到市场80%分位左右"
+      - "可以略高于平均但不要高太多"
+    note: "中频"
+
+  - id: "new_account_frequency"
+    label: "发布频次超限/账号新"
+    probability: 0.05
+    severity: medium
+    symptoms:
+      - "新号或刚复活的号，所有商品都没流量"
+    cause: "新账号单日>10件，或未实名账号单日>3件，触发观察名单"
+    evidence_fields:
+      - account_age_days
+      - daily_publish_count
+      - is_verified
+    fix:
+      - "新号前3天日均≤3件"
+      - "先完成实名认证再批量发"
+    note: "低频"
+
+  - id: "frequent_edit"
+    label: "发布后频繁编辑"
+    probability: 0.05
+    severity: medium
+    symptoms:
+      - "发布后曝光先涨后掉"
+    cause: "发布→1小时内改≥3次，进推荐池的权重被重置"
+    evidence_fields:
+      - edit_count_within_1h
+      - title_change_count
+      - price_change_count
+    fix:
+      - "发布前一次性写好"
+      - "发布后24小时内能不改就不改"
+    note: "低频"
+
+  - id: "duplicate_listing"
+    label: "连发同款"
+    probability: 0.04
+    severity: medium
+    symptoms:
+      - "多件相似商品都没流量"
+    cause: "同一账号短时间内发多件几乎相同的商品，被判'批发/职业卖家'嫌疑"
+    evidence_fields:
+      - similar_listing_count
+      - title_similarity
+    fix:
+      - "有多个同款，建议合并为1个商品的不同SKU描述"
+      - "必须分开发时，标题差异化+图片差异化（换首图）"
+    note: "低频"
+
+# ============================================================
+# 搜索排序权重因子
+# ============================================================
+rank_factors:
+  level_1:  # 决定性因子
+    - id: "account_health"
+      label: "账号闲气值"
+      thresholds:
+        - { range: "<60", impact: "所有商品权重基本废", score: 0 }
+        - { range: "60-80", impact: "搜索露出-30%~-50%", score: 40 }
+        - { range: "80-95", impact: "正常", score: 80 }
+        - { range: ">95", impact: "推荐流轻微加权", score: 100 }
+    - id: "item_status"
+      label: "商品当前状态"
+      checks:
+        - { field: "has_violation", impact: "违规过→降权", score_penalty: -50 }
+        - { field: "is_limited", impact: "限流标记下", score_penalty: -70 }
+    - id: "initial_interaction"
+      label: "初始24小时互动率"
+      thresholds:
+        - { field: "ctr", range: ">3%", impact: "点击率健康", score: 100 }
+        - { field: "ctr", range: "1-3%", impact: "点击率偏低", score: 60 }
+        - { field: "ctr", range: "<1%", impact: "点击率低", score: 20 }
+        - { field: "inquiry_rate", range: ">5%", impact: "咨询率有效", score: 100 }
+
+  level_2:  # 优化项
+    - id: "title_quality"
+      label: "标题质量"
+      checks:
+        - { field: "title_length", ideal: "18-28", impact: "长度不达标降权" }
+        - { field: "has_brand", required: true, impact: "缺品牌" }
+        - { field: "has_core_keyword", required: true, impact: "缺核心词" }
+        - { field: "keyword_front_loaded", required: true, impact: "核心词未前置" }
+        - { field: "has_banned_words", bad: true, impact: "含违禁词" }
+    - id: "image_quality"
+      label: "图片质量"
+      checks:
+        - { field: "first_image_ratio", ideal: "1:1", impact: "首图非1:1扣分" }
+        - { field: "image_count", ideal: ">=3", impact: "图片少信任感低" }
+        - { field: "has_watermark", bad: true, impact: "含水印扣分" }
+    - id: "desc_quality"
+      label: "描述质量"
+      checks:
+        - { field: "desc_length", ideal: ">=100", impact: "短描述权重低" }
+        - { field: "desc_structure", required: true, impact: "结构不完整" }
+    - id: "category_match"
+      label: "类目匹配度"
+      checks:
+        - { field: "category_mismatch", bad: true, impact: "类目错放-30%" }
+    - id: "price_reasonable"
+      label: "价格合理性"
+      thresholds:
+        - { field: "price_deviation_ratio", range: "70-130%", impact: "最健康", score: 100 }
+        - { field: "price_deviation_ratio", range: "<70%", impact: "疑似钓鱼", score: 30 }
+        - { field: "price_deviation_ratio", range: ">130%", impact: "低点击率", score: 50 }
+
+  level_3:  # 边际因子
+    - id: "publish_time"
+      label: "发布时间"
+      suggestion: "晚7-9点、午休12-1点发布的曝光初速度更快"
+    - id: "local_traffic"
+      label: "发布地/同城流量"
+      suggestion: "发货地精确到区，同城推荐率更高"
+    - id: "account_behavior"
+      label: "账号行为"
+      checks:
+        - { field: "daily_login", good: true, impact: "每日登录加分" }
+        - { field: "reply_rate", ideal: ">80%", impact: "回复率低扣分" }
+
+  penalties:  # 降权扣分项
+    - id: "frequent_edit"
+      label: "频繁编辑"
+      penalty: "发布后1小时内改3+次"
+      recovery: "7天不动就恢复"
+    - id: "price_cut_title_change"
+      label: "降价改标"
+      penalty: "直接-50%~70%"
+      recovery: "7-14天"
+    - id: "duplicate_listing"
+      label: "同款连发"
+      penalty: "职业卖家嫌疑"
+      recovery: "停止连发即可"
+    - id: "external_contact_history"
+      label: "外联词历史"
+      penalty: "账号记录"
+      recovery: "30天（期间零违规）"
+    - id: "multi_account_same_ip"
+      label: "多号同IP"
+      penalty: "关联识别"
+      recovery: "换IP"
+    - id: "refuse_ship"
+      label: "拒发货记录"
+      penalty: "7天未发货扣分，连续3次严重降权"
+      recovery: "及时发货"
+
+# ============================================================
+# 权重恢复周期表
+# ============================================================
+recovery_periods:
+  - { cause: "频繁编辑", time: "7天不动就恢复" }
+  - { cause: "降价改标", time: "7-14天" }
+  - { cause: "外联历史", time: "30天（期间零违规）" }
+  - { cause: "账号闲气值", time: "视违规类型，30-90天" }
+  - { cause: "类目错放", time: "立即（重发即可）" }
+
+# ============================================================
+# 反模式（诊断时不应建议的操作）
+# ============================================================
+anti_patterns:
+  - "鼓励刷数据（刷流量/刷收藏/刷评论→风控秒杀）"
+  - "建议频繁改标题/改价（改动本身就是降权源）"
+  - "建议删掉重发（除非有明确理由；频繁删发=职业卖家嫌疑）"
+  - "建议用多个账号互相收藏（同IP关联，饱和式封号素材）"
