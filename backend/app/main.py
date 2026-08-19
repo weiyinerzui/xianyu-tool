@@ -4,7 +4,17 @@
 """
 from __future__ import annotations
 
+import asyncio
+import sys
 from contextlib import asynccontextmanager
+
+# Windows 事件循环修复：
+# uvicorn --reload 在 Windows 上会把事件循环切成 SelectorEventLoop（不支持子进程），
+# 导致 Playwright 拉起浏览器 driver 子进程时抛 NotImplementedError。
+# 必须在任何 asyncio 循环创建之前设置 ProactorEventLoopPolicy。
+# 参考：https://github.com/microsoft/playwright-python/issues/1112
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

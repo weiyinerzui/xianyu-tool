@@ -2,11 +2,19 @@
 
 参考 goofish-cli commands/search/search.py 的 DOM 提取思路，
 以及 xianyu-tool/backend/app/crawlers/playwright_crawler.py 的持久化上下文。
+
+Windows 兼容修复：
+uvicorn --reload 在 Windows 上会用 SelectorEventLoop（不支持子进程），
+导致 Playwright 拉起浏览器 driver 子进程时抛 NotImplementedError。
+解决办法：把整个 Playwright 流程放进独立工作线程，线程内新建
+ProactorEventLoop（Windows）运行，与 uvicorn 主事件循环彻底解耦。
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+import sys
 from typing import Any
 from urllib.parse import quote
 
@@ -64,10 +72,38 @@ def _item_id_from_url(url: str) -> str:
     return m.group(1) if m else ""
 
 
+def _new_event_loop() -> asyncio.AbstractEventLoop:
+    """创建支持子进程的事件循环（Windows 用 ProactorEventLoop）。"""
+    if sys.platform == "win32":
+        return asyncio.ProactorEventLoop()
+    return asyncio.new_event_loop()
+
+
 class PlaywrightCrawler(BaseCrawler):
     """L2: Playwright 浏览器采集，抗风控。"""
 
     async def search(self, keyword: str, category: str | None = None) -> list[CrawledProduct]:
+        # 放进工作线程运行，规避 Windows SelectorEventLoop 不支持子进程的限制
+        return await asyncio.to_thread(self._search_in_thread, keyword, category)
+
+    def _search_in_thread(
+        self, keyword: str, category: str | None
+    ) -> list[CrawledProduct]:
+        """在工作线程内新建事件循环运行 Playwright 协程。"""
+        loop = _new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(self._search_async(keyword, category))
+        finally:
+            try:
+                loop.close()
+            except Exception:  # noqa: BLE001
+                pass
+            asyncio.set_event_loop(None)
+
+    async def _search_async(
+        self, keyword: str, category: str | None = None
+    ) -> list[CrawledProduct]:
         try:
             from playwright.async_api import async_playwright
         except ImportError:
@@ -95,14 +131,15 @@ class PlaywrightCrawler(BaseCrawler):
 
                 async def on_response(response):
                     nonlocal api_products
-                    if "mtop.taobao.idle.awesome.post.search" in response.url:
+                    # 正确的搜索 API（参考 ai-goofish-monitor / goofish_api）
+                    if "mtop.taobao.idlemtopsearch.pc.search" in response.url:
                         try:
                             data = await response.json()
                             from app.crawlers.base import parse_search_api_json
                             parsed = parse_search_api_json(data, category or "")
                             if parsed:
                                 api_products.extend(parsed)
-                        except Exception:
+                        except Exception:  # noqa: BLE001
                             pass
 
                 page.on("response", on_response)
@@ -130,7 +167,7 @@ class PlaywrightCrawler(BaseCrawler):
                     logger.info("PlaywrightCrawler(DOM): %d products", len(products))
 
                 await browser.close()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error("PlaywrightCrawler failed for '%s': %s", keyword, e)
             self._consecutive_failures += 1
             raise
