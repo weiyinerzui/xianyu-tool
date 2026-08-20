@@ -127,6 +127,91 @@ def test_nested_format():
         assert loaded["unb"] == "123456789"
 
 
+def test_normalize_devtools_array():
+    """支持 DevTools/扩展导出的 [{"name","value"}] 数组格式（用户实际粘贴的格式）。"""
+    from app.services.session_manager import normalize_cookies
+
+    data = [
+        {"name": "t", "value": "066af7ac273cb5a058f3f655438fa1c8"},
+        {"name": "_m_h5_tk", "value": "9cf64adaf538eec2b7697c9a5a348f60_1787229497772"},
+        {"name": "unb", "value": "2222760945685"},
+        {"name": "tracknick", "value": "xy009827666472"},
+    ]
+    result = normalize_cookies(data)
+    assert result["unb"] == "2222760945685"
+    assert result["_m_h5_tk"] == "9cf64adaf538eec2b7697c9a5a348f60_1787229497772"
+    assert result["t"] == "066af7ac273cb5a058f3f655438fa1c8"
+    assert len(result) == 4
+
+
+def test_normalize_full_devtools_array():
+    """支持带 domain/path 等额外字段的完整 DevTools 导出格式。"""
+    from app.services.session_manager import normalize_cookies
+
+    data = [
+        {"name": "unb", "value": "123", "domain": ".goofish.com", "path": "/", "httpOnly": True},
+        {"name": "_m_h5_tk", "value": "abc_123", "domain": ".goofish.com"},
+    ]
+    result = normalize_cookies(data)
+    assert result == {"unb": "123", "_m_h5_tk": "abc_123"}
+
+
+def test_normalize_cookie_header_string():
+    """支持 Cookie 请求头字符串（document.cookie 输出）。"""
+    from app.services.session_manager import normalize_cookies
+
+    s = "unb=123456789; _m_h5_tk=abc123def456_1700000000000; tracknick=test"
+    result = normalize_cookies(s)
+    assert result["unb"] == "123456789"
+    assert result["tracknick"] == "test"
+
+
+def test_normalize_json_string():
+    """支持 JSON 的字符串形式（前端直接粘贴原文）。"""
+    from app.services.session_manager import normalize_cookies
+
+    result = normalize_cookies(json.dumps([{"name": "unb", "value": "9"}]))
+    assert result == {"unb": "9"}
+    result2 = normalize_cookies(json.dumps({"unb": "9", "_m_h5_tk": "x"}))
+    assert result2["unb"] == "9"
+
+
+def test_normalize_nested_array():
+    """支持 {"cookies": [数组]} 包装格式。"""
+    from app.services.session_manager import normalize_cookies
+
+    result = normalize_cookies({"cookies": [{"name": "unb", "value": "7"}]})
+    assert result == {"unb": "7"}
+
+
+def test_normalize_invalid():
+    """非法输入应抛 SessionError。"""
+    import pytest
+
+    from app.services.session_manager import SessionError, normalize_cookies
+
+    with pytest.raises(SessionError):
+        normalize_cookies(12345)
+    with pytest.raises(SessionError):
+        normalize_cookies([{"foo": "bar"}])  # 无 name/value
+    with pytest.raises(SessionError):
+        normalize_cookies("no equals sign here")
+
+
+def test_load_array_format_file():
+    """load() 也应兼容数组格式文件。"""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "cookies.json"
+        path.write_text(
+            json.dumps([{"name": "unb", "value": "1"}, {"name": "_m_h5_tk", "value": "x"}]),
+            encoding="utf-8",
+        )
+        sm = SessionManager(path)
+        loaded = sm.load()
+        assert loaded["unb"] == "1"
+        assert sm.validate() is True
+
+
 if __name__ == "__main__":
     test_save_and_load()
     test_validate_valid()

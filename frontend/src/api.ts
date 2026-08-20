@@ -32,7 +32,7 @@ export const guardReset = () => api.post('/guard/reset').then(r => r.data);
 
 // 登录态
 export const sessionStatus = () => api.get('/session/status').then(r => r.data);
-export const sessionImport = (cookies: Record<string, string>) =>
+export const sessionImport = (cookies: unknown) =>
   api.post('/session/import', { cookies }).then(r => r.data);
 
 // 调度器

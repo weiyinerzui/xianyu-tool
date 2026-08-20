@@ -21,6 +21,58 @@ REQUIRED_COOKIE_KEYS = ["unb", "_m_h5_tk"]
 RECOMMENDED_COOKIE_KEYS = ["cookie2", "sgcookie", "unb", "cna", "isg", "_m_h5_tk"]
 
 
+def _parse_cookie_header(s: str) -> dict[str, str]:
+    """解析 Cookie 请求头字符串：'name=value; name2=value2'。"""
+    result: dict[str, str] = {}
+    for part in s.split(";"):
+        part = part.strip()
+        if "=" in part:
+            k, _, v = part.partition("=")
+            if k.strip():
+                result[k.strip()] = v.strip()
+    if not result:
+        raise SessionError("无法从字符串中解析出任何 cookie")
+    return result
+
+
+def normalize_cookies(data: Any) -> dict[str, str]:
+    """把各种导出格式的 cookie 数据归一化为 dict[str, str]。
+
+    支持格式：
+    1. dict：{"name": "value", ...}
+    2. DevTools/扩展导出的数组：[{"name": ..., "value": ..., (domain/path 等可选)}, ...]
+    3. 包装对象：{"cookies": <上述任一格式>}
+    4. Cookie 请求头字符串："name=value; name2=value2"
+    5. 上述 JSON 的字符串形式（前端直接粘贴原文）
+    """
+    if isinstance(data, str):
+        data = data.strip()
+        try:
+            data = json.loads(data)
+        except json.JSONDecodeError:
+            return _parse_cookie_header(data)
+
+    if isinstance(data, dict):
+        if "cookies" in data and isinstance(data["cookies"], (dict, list)):
+            return normalize_cookies(data["cookies"])
+        return {
+            str(k): str(v)
+            for k, v in data.items()
+            if isinstance(v, (str, int, float))
+        }
+
+    if isinstance(data, list):
+        result: dict[str, str] = {}
+        for item in data:
+            if isinstance(item, dict) and "name" in item and "value" in item:
+                result[str(item["name"])] = str(item["value"])
+        if result:
+            return result
+        raise SessionError("数组格式需包含 name/value 字段的对象")
+
+    raise SessionError("不支持的 cookie 格式")
+
+
 class SessionError(Exception):
     """登录态异常。"""
 
@@ -48,11 +100,8 @@ class SessionManager:
         except json.JSONDecodeError as e:
             raise SessionError(f"cookie 文件格式错误：{e}") from e
 
-        # 支持两种格式：{"key":"val"} 或 {"cookies":{"key":"val"}}
-        if "cookies" in data and isinstance(data["cookies"], dict):
-            self._cookies = data["cookies"]
-        else:
-            self._cookies = data
+        # 兼容所有常见导出格式（dict / 数组 / 包装对象 / 头字符串）
+        self._cookies = normalize_cookies(data)
         self._loaded = True
         return self._cookies
 

@@ -295,18 +295,37 @@ def session_status() -> dict[str, Any]:
 
 
 class SessionImportRequest(BaseModel):
-    cookies: dict[str, str] = Field(..., description="cookie dict")
+    cookies: Any = Field(..., description="cookie 数据，支持 dict / 数组 / Cookie 头字符串")
 
 
 @router.post("/session/import", summary="导入登录态")
 def session_import(req: SessionImportRequest) -> dict[str, Any]:
-    """导入 cookie（从浏览器 DevTools 导出后粘贴）。"""
-    from app.services.session_manager import REQUIRED_COOKIE_KEYS, get_session
+    """导入 cookie（粘贴浏览器导出的 JSON 数组 / JSON 对象 / Cookie 头字符串均可）。"""
+    from app.services.session_manager import (
+        REQUIRED_COOKIE_KEYS,
+        SessionError,
+        get_session,
+        normalize_cookies,
+    )
+
+    try:
+        cookies = normalize_cookies(req.cookies)
+    except SessionError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    if not cookies:
+        raise HTTPException(status_code=422, detail="未能解析出任何 cookie")
 
     sm = get_session()
-    sm.save(req.cookies)
-    valid = all(k in req.cookies for k in REQUIRED_COOKIE_KEYS)
-    return {"saved": True, "valid": valid, "status": sm.status()}
+    sm.save(cookies)
+    valid = all(k in cookies for k in REQUIRED_COOKIE_KEYS)
+    missing = [k for k in REQUIRED_COOKIE_KEYS if k not in cookies]
+    return {
+        "saved": True,
+        "valid": valid,
+        "missing_keys": missing,
+        "total_keys": len(cookies),
+        "status": sm.status(),
+    }
 
 
 # ============================================================

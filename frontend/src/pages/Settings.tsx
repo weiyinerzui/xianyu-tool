@@ -28,17 +28,23 @@ export default function Settings() {
   useEffect(() => { loadAll(); }, []);
 
   const handleImport = async () => {
+    if (!cookieText.trim()) {
+      message.warning('请先粘贴 cookie 内容');
+      return;
+    }
     try {
-      const cookies = JSON.parse(cookieText);
-      const data = await sessionImport(cookies);
+      // 直接把原文发给后端，后端兼容 JSON 数组 / JSON 对象 / Cookie 头字符串
+      const data = await sessionImport(cookieText);
       if (data.valid) {
-        message.success('登录态导入成功');
+        message.success(`登录态导入成功，共 ${data.total_keys} 个 cookie 字段`);
       } else {
-        message.warning('已保存，但缺少必需字段（unb / _m_h5_tk）');
+        const missing = (data.missing_keys as string[]) || [];
+        message.warning(`已保存，但缺少必需字段：${missing.join(' / ')}`);
       }
       loadAll();
-    } catch {
-      message.error('JSON 格式错误');
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } }).response?.data?.detail;
+      message.error(detail ? `导入失败：${detail}` : '导入失败，请检查粘贴内容');
     }
   };
 
@@ -86,12 +92,34 @@ export default function Settings() {
           </Descriptions>
         )}
         <Divider />
-        <Text type="secondary">粘贴从浏览器 DevTools 导出的 cookie JSON：</Text>
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 8 }}
+          message="如何导出 cookie（任选一种）"
+          description={
+            <ol style={{ margin: 0, paddingLeft: 16 }}>
+              <li>
+                方法一（最快）：浏览器登录 https://www.goofish.com 后按 F12，切到
+                Console 标签，输入 <Text code>copy(document.cookie)</Text> 回车，
+                剪贴板即为 cookie 字符串，直接粘贴到下方输入框。
+              </li>
+              <li>
+                方法二：F12 → Application → Storage → Cookies →
+                https://www.goofish.com，用 EditThisCookie 等扩展导出 JSON 数组后粘贴。
+              </li>
+              <li>导入后状态显示「有效」即成功（需包含 unb 和 _m_h5_tk 字段）。</li>
+            </ol>
+          }
+        />
+        <Text type="secondary">
+          {'支持三种格式：JSON 数组 [{"name":"unb","value":"..."}...] / JSON 对象 {"unb":"..."} / Cookie 头字符串 "unb=...; _m_h5_tk=..."'}
+        </Text>
         <TextArea
           value={cookieText}
           onChange={(e) => setCookieText(e.target.value)}
-          placeholder='{"unb":"xxx","_m_h5_tk":"xxx","cookie2":"xxx",...}'
-          rows={4}
+          placeholder='[{"name":"unb","value":"xxx"},{"name":"_m_h5_tk","value":"xxx"},...]'
+          rows={6}
           style={{ marginTop: 8 }}
         />
         <Button icon={<ImportOutlined />} onClick={handleImport} style={{ marginTop: 8 }}>导入</Button>
