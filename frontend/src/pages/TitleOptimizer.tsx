@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Input, Button, Card, Progress, Tag, List, Space, Typography, Row, Col, Statistic, Divider } from 'antd';
+import { Input, Button, Card, Tag, List, Space, Typography, Row, Col, Statistic, Divider } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { titleScore, titleGenerate } from '../api';
 

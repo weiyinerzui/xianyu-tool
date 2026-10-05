@@ -36,7 +36,6 @@ export default function Dashboard() {
 
   const price = overview?.price as Record<string, number> || {};
   const want = overview?.want_count as Record<string, number> || {};
-  const hot = overview?.hot_score as Record<string, number> || {};
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="large">

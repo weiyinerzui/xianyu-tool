@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Tabs, Space, InputNumber, Button, Row, Col, Statistic, message } from 'antd';
+import { Card, Table, Tag, Tabs, Space, InputNumber, Button, Row, Col, Statistic } from 'antd';
 import { competitorsTopSellers, competitorsNewListings, competitorsPriceChanges } from '../api';
 
 export default function Competitors() {

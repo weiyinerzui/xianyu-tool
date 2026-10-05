@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Form, Input, InputNumber, Switch, Button, Card, Alert, Tag, List, Progress, Space, Typography, Row, Col, Statistic } from 'antd';
+import { Form, Input, InputNumber, Switch, Button, Card, Tag, List, Progress, Space, Typography, Row, Col, Statistic } from 'antd';
 import { MedicineBoxOutlined } from '@ant-design/icons';
 import { diagnose } from '../api';
 
