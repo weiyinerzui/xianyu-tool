@@ -57,7 +57,7 @@ class SchedulerService:
         from app.database import async_session
         from app.services.crawler_service import get_crawler_service
         from app.services.guard import get_guard
-        from app.services.scorer import calculate_hot_score, calc_category_avg_price
+        from app.services.scorer import calc_category_avg_price, score_dimensions
 
         guard = get_guard()
         if guard.is_tripped("crawl"):
@@ -88,16 +88,18 @@ class SchedulerService:
                             stmt = select(Product).where(Product.xianyu_id == p.xianyu_id)
                             row = (await db.execute(stmt)).scalar_one_or_none()
                             if row:
-                                scores = calculate_hot_score(
-                                    current_want=row.want_count,
-                                    previous_want=None,
-                                    hours=0,
-                                    price=row.price,
-                                    category_avg_price=avg_price,
+                                # 想要数增速已在 _save_products 里基于快照算好（P1-2），
+                                # 传 row.want_velocity 避免被重算成 0
+                                scores = score_dimensions(
                                     want_count=row.want_count,
                                     view_count=row.view_count,
+                                    price=row.price,
+                                    category_avg_price=avg_price,
                                     publish_time=row.publish_time,
                                     total_listings=len(products),
+                                    want_velocity_score=(
+                                        row.want_velocity if row.want_velocity else None
+                                    ),
                                 )
                                 row.hot_score = scores["hot_score"]
                                 row.want_velocity = scores["want_velocity"]

@@ -149,3 +149,60 @@ def calc_category_avg_price(prices: list[float]) -> float:
     trim = max(1, n // 10)
     trimmed = sorted_prices[trim : n - trim]
     return sum(trimmed) / len(trimmed) if trimmed else sum(sorted_prices) / n
+
+
+def score_dimensions(
+    *,
+    want_count: int,
+    view_count: int,
+    price: float,
+    category_avg_price: float,
+    publish_time: Optional[datetime],
+    total_listings: int,
+    new_24h: int = 0,
+    want_velocity_score: Optional[float] = None,
+) -> dict[str, float]:
+    """算分并处理「维度不可用」的情况。
+
+    不可用的维度必须显式处理，而不是让它静默变 0 后仍占着权重：
+    - engagement_rate 需要 view_count。闲鱼搜索接口不返回浏览量，
+      此时该维度不可用，应把权重按比例分摊给其它维度（而不是白白损失 20% 权重）。
+    - want_velocity 需要上一条快照。无历史时由调用方传入 None。
+    """
+    wv = want_velocity_score or 0.0
+    pa = calc_price_advantage(price, category_avg_price)
+    er = calc_engagement_rate(want_count, view_count)
+    fr = calc_freshness(publish_time)
+    cp = calc_competition(total_listings, new_24h)
+
+    has_wv = want_velocity_score is not None
+    has_er = view_count > 0
+
+    # 有效权重 = 参与打分的维度权重之和；不可用维度的权重按比例分摊
+    wv_w = settings.weight_want_velocity if has_wv else 0.0
+    er_w = settings.weight_engagement_rate if has_er else 0.0
+    active_w = wv_w + settings.weight_price_advantage + er_w + settings.weight_freshness + settings.weight_competition
+
+    if active_w <= 0:
+        return {
+            "hot_score": 0.0, "want_velocity": round(wv, 2),
+            "price_advantage": round(pa, 2), "engagement_rate": round(er, 2),
+            "freshness": round(fr, 2), "competition": round(cp, 2),
+        }
+
+    score = (
+        wv * wv_w
+        + pa * settings.weight_price_advantage
+        + er * er_w
+        + fr * settings.weight_freshness
+        + cp * settings.weight_competition
+    ) / active_w
+
+    return {
+        "hot_score": round(score, 2),
+        "want_velocity": round(wv, 2),
+        "price_advantage": round(pa, 2),
+        "engagement_rate": round(er, 2),
+        "freshness": round(fr, 2),
+        "competition": round(cp, 2),
+    }

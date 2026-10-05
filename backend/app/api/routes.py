@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.services.banned_checker import get_checker
 from app.services.diagnosis_engine import get_engine
+from app.services.scorer import score_dimensions
 from app.services.title_advisor import get_advisor
 
 router = APIRouter(prefix="/api/v1", tags=["xianyu-ops"])
@@ -138,17 +139,57 @@ class CrawlRequest(BaseModel):
 
 @router.post("/crawl/search", summary="采集搜索（触发爬取+存储）")
 async def crawl_search(req: CrawlRequest) -> dict[str, Any]:
-    """触发采集：L1(httpx)→L2(playwright) 两级降级，结果存入数据库。"""
+    """触发采集：L1(httpx)→L2(playwright) 两级降级，结果存入数据库。
+
+    采集成功后立即计算热度分（P1-3），让手动采集也能直接看到排序结果。
+    失败时回显具体原因（登录态/风控），避免 source=none 的静默失败。
+    """
     from app.database import async_session
     from app.services.crawler_service import get_crawler_service
+    from app.services.scorer import calc_category_avg_price
 
     service = get_crawler_service()
     async with async_session() as db:
         products, source = await service.crawl(req.keyword, req.category, db)
+
+        scored = 0
+        if products:
+            from sqlalchemy import select
+
+            from app.models.product import Product
+
+            prices = [p.price for p in products if p.price > 0]
+            avg_price = calc_category_avg_price(prices)
+            for p in products:
+                stmt = select(Product).where(Product.xianyu_id == p.xianyu_id)
+                row = (await db.execute(stmt)).scalar_one_or_none()
+                if not row:
+                    continue
+                scores = score_dimensions(
+                    want_count=row.want_count,
+                    view_count=row.view_count,
+                    price=row.price,
+                    category_avg_price=avg_price,
+                    publish_time=row.publish_time,
+                    total_listings=len(products),
+                    want_velocity_score=(
+                        row.want_velocity if row.want_velocity else None
+                    ),
+                )
+                row.hot_score = scores["hot_score"]
+                row.want_velocity = scores["want_velocity"]
+                row.price_advantage = scores["price_advantage"]
+                row.freshness = scores["freshness"]
+                row.competition = scores["competition"]
+                scored += 1
+            await db.commit()
+
     return {
         "keyword": req.keyword,
         "source": source,
         "total": len(products),
+        "scored": scored,
+        "error": "" if source != "none" else (service.last_error or "采集失败，未取到数据"),
         "products": [p.to_dict() for p in products[:50]],
     }
 
@@ -326,6 +367,43 @@ def session_import(req: SessionImportRequest) -> dict[str, Any]:
         "total_keys": len(cookies),
         "status": sm.status(),
     }
+
+
+@router.get("/session/qr-login", summary="扫码登录（打开登录窗口并等待扫码）")
+async def session_qr_login(timeout: int = 180) -> dict[str, Any]:
+    """打开闲鱼登录窗口，等待用户扫码，登录成功后自动保存 cookie。
+
+    这是数据采集的前置条件：未登录时搜索接口返回 RGV587，且结果页不渲染。
+
+    注意：headless=False 时需要有显示器（Linux 服务器请用 xvfb-run 启动）。
+    """
+    from app.services import qr_login
+
+    if qr_login.is_running():
+        return {"ok": False, "reason": "已有扫码登录会话在运行"}
+
+    session = qr_login.get_qr_session()
+    try:
+        started = await session.start()
+    except Exception as e:  # noqa: BLE001
+        await qr_login.close_qr_session()
+        raise HTTPException(status_code=500, detail=f"启动登录窗口失败：{e}") from e
+
+    result = await session.wait_for_login()
+    await qr_login.close_qr_session()
+
+    if not result.get("ok"):
+        return {**started, **result}
+    return {**started, **result, "status": session_status()}
+
+
+@router.post("/session/qr-login/close", summary="关闭扫码登录窗口")
+async def session_qr_login_close() -> dict[str, Any]:
+    """强制关闭扫码登录窗口。"""
+    from app.services import qr_login
+
+    await qr_login.close_qr_session()
+    return {"closed": True}
 
 
 # ============================================================

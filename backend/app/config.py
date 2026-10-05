@@ -17,6 +17,17 @@ class Settings(BaseSettings):
     crawler_cooldown_minutes: int = 30
     crawler_search_max_pages: int = 3
 
+    # 浏览器反指纹（P0-1）
+    # 闲鱼对 headless Chromium 有指纹识别，会直接返回「非法访问」页。
+    # 实测 headless=False + xvfb 可绕过该层拦截，因此默认关闭 headless。
+    crawler_headless: bool = False
+    # Linux 无显示器（CI / 服务器）时自动套 xvfb-run 启动
+    crawler_auto_xvfb: bool = True
+    # 持久化浏览器 profile 目录：复用登录态与设备指纹，降低风控命中率
+    crawler_user_data_dir: str = ""
+    # 代理池（逗号分隔，如 http://127.0.0.1:7890,http://127.0.0.1:7891）
+    crawler_proxies: str = ""
+
     # 风控护栏
     limiter_max_writes_per_minute: int = 1
     guard_circuit_break_minutes: int = 10

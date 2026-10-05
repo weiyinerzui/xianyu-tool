@@ -15,6 +15,7 @@ from app.crawlers.base import CrawledProduct
 from app.crawlers.httpx_crawler import HttpxCrawler
 from app.crawlers.playwright_crawler import PlaywrightCrawler
 from app.models.product import Product
+from app.services.scorer import calc_want_velocity
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class CrawlerService:
     def __init__(self) -> None:
         self.httpx_crawler = HttpxCrawler()
         self.playwright_crawler = PlaywrightCrawler()
+        # 最近一次采集失败原因（供 API 层回显，避免静默失败）
+        self.last_error: str = ""
 
     async def crawl(
         self,
@@ -46,6 +49,7 @@ class CrawlerService:
                 return products, "httpx"
         except Exception as e:
             logger.warning("L1 failed for '%s': %s", keyword, e)
+            self.last_error = f"L1 httpx 失败：{e}"
 
         # L2: Playwright
         try:
@@ -55,32 +59,56 @@ class CrawlerService:
                 if db:
                     await self._save_products(products, keyword, db)
                 return products, "playwright"
+            self.last_error = "L2 Playwright 未取到数据（可能未登录或被风控）"
         except Exception as e:
             logger.error("L2 failed for '%s': %s", keyword, e)
+            self.last_error = str(e)
 
-        logger.error("All levels failed for '%s'", keyword)
+        logger.error("All levels failed for '%s': %s", keyword, self.last_error)
         return [], "none"
 
     async def _save_products(
         self, products: list[CrawledProduct], keyword: str, db: AsyncSession
     ) -> int:
-        """保存采集结果到数据库（增量，按 xianyu_id 去重）。"""
+        """保存采集结果到数据库（增量，按 xianyu_id 去重）。
+
+        同时写入快照表（P1-1），为「想要数增速」提供时序数据。
+        快照必须在本轮算分之前写入：算分需要读「上一条」快照，
+        所以先落本轮快照、再查上一条，避免把当前值当成历史值。
+        """
+        from app.models.snapshot import ProductSnapshot
+
         new_count = 0
+        now = datetime.utcnow()
+
         for cp in products:
             if not cp.xianyu_id:
                 continue
-            # 检查是否已存在
+
+            # 读取上一条快照（用于算增速），再写入本轮快照
+            prev_stmt = (
+                select(ProductSnapshot)
+                .where(ProductSnapshot.xianyu_id == cp.xianyu_id)
+                .order_by(ProductSnapshot.captured_at.desc())
+                .limit(1)
+            )
+            prev = (await db.execute(prev_stmt)).scalar_one_or_none()
+            prev_want = prev.want_count if prev else None
+            prev_at = prev.captured_at if prev else None
+
+            # 检查商品是否已存在
             stmt = select(Product).where(Product.xianyu_id == cp.xianyu_id)
             result = await db.execute(stmt)
             existing = result.scalar_one_or_none()
 
             if existing:
-                # 更新想要数等动态字段
+                # 更新动态字段，并写入快照
                 existing.want_count = cp.want_count
                 existing.price = cp.price
-                existing.fetched_at = datetime.utcnow()
+                existing.fetched_at = now
+                target = existing
             else:
-                product = Product(
+                target = Product(
                     xianyu_id=cp.xianyu_id,
                     title=cp.title,
                     price=cp.price,
@@ -98,11 +126,24 @@ class CrawlerService:
                     source="search",
                     keyword=keyword,
                 )
-                db.add(product)
+                db.add(target)
                 new_count += 1
 
+            db.add(ProductSnapshot(
+                xianyu_id=cp.xianyu_id,
+                want_count=cp.want_count,
+                view_count=cp.view_count,
+                price=cp.price,
+                captured_at=now,
+            ))
+
+            # 有历史快照时立刻算增速（权重最高的维度）
+            if prev_want is not None and prev_at is not None:
+                hours = max((now - prev_at).total_seconds() / 3600.0, 0.01)
+                target.want_velocity = calc_want_velocity(cp.want_count, prev_want, hours)
+
         await db.commit()
-        logger.info("Saved %d new products for '%s'", new_count, keyword)
+        logger.info("Saved %d new products + snapshots for '%s'", new_count, keyword)
         return new_count
 
 

@@ -23,7 +23,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_db() -> None:
     """创建所有表。"""
-    from app.models import product, crawl_task  # noqa: F401  确保模型被导入
+    # 导入所有模型以注册 metadata（snapshot 提供增速计算所需的时序数据）
+    from app.models import crawl_task, product, snapshot  # noqa: F401
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

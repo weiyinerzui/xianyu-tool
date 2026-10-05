@@ -30,10 +30,28 @@ export default function ProductResearch() {
     setCrawling(true);
     try {
       const data = await crawlSearch(keyword, category);
-      message.success(`采集完成：${data.total} 条（来源：${data.source}）`);
+      if (data.source === 'none' || !data.total) {
+        // 后端会回显真实原因（未登录 / 被风控 / 缺 X server），
+        // 直接展示给用户，避免「采集成功但 0 条」这种误导性提示
+        message.error({
+          content: (
+            <div style={{ maxWidth: 520 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>采集失败：{(data.error as string) || '未取到数据'}</div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>
+                常见原因：① 未导入登录 cookie（闲鱼要求登录后才返回搜索结果）
+                → 用闲鱼 App 扫码登录；② 触发风控 → 配置代理；③ 服务器无显示器
+                → 用 xvfb-run 启动服务。
+              </div>
+            </div>
+          ),
+          duration: 10,
+        });
+      } else {
+        message.success(`采集完成：${data.total} 条，已算分 ${data.scored ?? 0} 条（来源：${data.source}）`);
+      }
       handleSearch();
-    } catch {
-      message.error('采集失败，可能需要登录态或触发风控');
+    } catch (e) {
+      message.error(`采集请求失败：${(e as Error)?.message ?? '未知错误'}`);
     } finally { setCrawling(false); }
   };
 
