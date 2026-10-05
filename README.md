@@ -59,7 +59,8 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+python -m playwright install chromium   # 采集功能必需的浏览器二进制
+uvicorn app.main:app --port 8000
 ```
 
 **Windows (PowerShell):**
@@ -69,12 +70,21 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-playwright install chromium          # 首次需安装浏览器二进制（L2 爬虫用）
-uvicorn app.main:app --reload --port 8000
+# 浏览器二进制（采集功能必需）。用 python -m 调用，避免 "playwright 不是命令"
+python -m playwright install chromium
+uvicorn app.main:app --port 8000
 ```
 
 > 如果 PowerShell 提示无法执行脚本，先运行一次：
 > `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+> ⚠️ **不要加 `--reload`**：它在 Windows 上用 SelectorEventLoop，
+> Playwright 拉起浏览器子进程时会抛 `NotImplementedError`（项目已用工作线程方案规避）。
+
+> ⚠️ **Python 3.14（cp314）用户**：若 `pip install` 报
+> `Microsoft Visual C++ 14.0 or greater is required`，说明某个依赖没有 cp314 预编译轮子、
+> pip 回退到了源码编译。requirements.txt 已用 `>=` 约束到有 cp314 wheel 的版本，
+> 若仍失败请贴报错给我。
 
 ### 前端
 

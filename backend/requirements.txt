@@ -1,16 +1,25 @@
-aiosqlite==0.22.1
-anyio==4.14.2
-APScheduler==3.11.3
-fastapi==0.141.1
-greenlet==3.5.5
-h11==0.16.0
-httpx==0.28.1
-playwright==1.62.0
-pydantic==2.13.4
-pydantic_core==2.46.4
-pydantic-settings==2.15.0
-PyYAML==6.0.2
-pytest==9.1.1
-SQLAlchemy==2.0.52
-starlette==1.6.0
-uvicorn==0.52.3
+# 后端依赖
+#
+# 版本约束说明（Windows + Python 3.14 实测踩坑后调整）：
+# 1) 使用 >= 而非 ==：编译型依赖（带 C 扩展）在 cp314 上需要对应预编译 wheel，
+#    过旧的固定版本没有 cp314 wheel，pip 会回退源码编译并要求装
+#    Microsoft Visual C++ Build Tools（报错 "Microsoft Visual C++ 14.0 or greater is required"）。
+#    典型案例：PyYAML 6.0.2 无 cp314 wheel，6.0.3 才有。
+# 2) 不要下调到「无 cp314 wheel」的版本，否则 Windows 用户会卡在编译失败。
+# 3) 如需严格锁版本，请确认目标环境 Python 版本后再 pin。
+aiosqlite>=0.22.1
+anyio>=4.14.2
+APScheduler>=3.11.3
+fastapi>=0.141.1
+greenlet>=3.5.5
+h11>=0.16.0
+httpx>=0.28.1
+playwright>=1.62.0
+pydantic>=2.13.4
+pydantic_core>=2.46.4
+pydantic-settings>=2.15.0
+PyYAML>=6.0.3
+pytest>=9.1.1
+SQLAlchemy>=2.0.52
+starlette>=1.6.0
+uvicorn>=0.52.3
