@@ -313,7 +313,10 @@ class PlaywrightCrawler(BaseCrawler):
 
                 if api_products:
                     logger.info("PlaywrightCrawler(API拦截): %d products", len(api_products))
-                    products = api_products
+                    # 拷贝而非引用！翻页循环里 api_products.clear() 复用采集缓冲，
+                    # 引用赋值会让 products 一起被清空（实测导致 30 条数据得而复失、
+                    # 翻页循环因 products 为空提前 break）
+                    products = list(api_products)
                 else:
                     # 未登录时结果不渲染（页面停在「加载中」并弹登录引导）。
                     # 这时静默返回空列表会让用户以为"该关键词没爆款"，必须显式报错。
