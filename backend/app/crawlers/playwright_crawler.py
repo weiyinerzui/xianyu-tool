@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import random
 import re
 import sys
 from typing import Any
@@ -65,6 +66,16 @@ _EXTRACT_JS = r"""
       || /请先登录|登录后|验证码|安全验证|暂无相关宝贝/.test(t)
     );
   });
+  // 从卡片文本解析 "N人想要"（服务端已不再通过 mtop API 下发该字段，仅 DOM 呈现）
+  const parseWant = (text) => {
+    const m = /(\d+)\s*人想要/.exec(text || '');
+    if (m) return parseInt(m[1], 10);
+    const t = clean(text || '').replace(/,/g, '');
+    // 兼容 "1.2万" 格式
+    const wm = /([\d.]+)\s*万/.exec(t);
+    if (wm) return Math.round(parseFloat(wm[1]) * 10000);
+    return 0;
+  };
   const items = Array.from(document.querySelectorAll(sel.card))
     .slice(0, limit)
     .map((card) => {
@@ -74,7 +85,13 @@ _EXTRACT_JS = r"""
       const pn = clean(pw?.querySelector(sel.priceNum)?.textContent || '');
       const pd = clean(pw?.querySelector(sel.priceDec)?.textContent || '');
       const loc = clean(card.querySelector(sel.sellerWrap)?.querySelector(sel.sellerText)?.textContent || '');
-      return { title, url: href, price: clean('¥' + pn + pd).replace(/^¥\s*$/, ''), location: loc };
+      return {
+        title,
+        url: href,
+        price: clean('¥' + pn + pd).replace(/^¥\s*$/, ''),
+        location: loc,
+        want_count: parseWant(card.innerText),
+      };
     });
   return { items, empty: /暂无相关宝贝|没有找到/.test(document.body?.innerText || '') };
 });
@@ -138,6 +155,33 @@ class PlaywrightCrawler(BaseCrawler):
                 pass
             asyncio.set_event_loop(None)
 
+    async def _collect_dom_wants(self, page: Any) -> dict[str, int]:
+        """从当前页 DOM 收集 {item_id: 想要数}。
+
+        服务端已不再通过 mtop API 下发 wantNum（实测 30/30 恒为 0），
+        想要数只呈现在卡片文本 "N人想要" 中。失败不阻断主流程。
+        """
+        js = r"""
+        () => {
+          const out = {};
+          document.querySelectorAll('a[href*="/item?id="]').forEach((card) => {
+            const href = card.href || card.getAttribute('href') || '';
+            const m = /[?&]id=(\d+)/.exec(href);
+            if (!m) return;
+            const t = (card.innerText || '').replace(/\s+/g, ' ');
+            const w = /(\d+)\s*人想要/.exec(t);
+            if (w) out[m[1]] = parseInt(w[1], 10);
+          });
+          return out;
+        }
+        """
+        try:
+            result = await page.evaluate(js)
+            return {str(k): int(v) for k, v in (result or {}).items()}
+        except Exception as e:  # noqa: BLE001
+            logger.debug("DOM 想要数收集失败：%s", e)
+            return {}
+
     def _load_cookies(self) -> dict[str, str]:
         """加载登录态 cookie（不存在时返回空 dict，不阻断采集）。"""
         try:
@@ -181,7 +225,12 @@ class PlaywrightCrawler(BaseCrawler):
             kwargs.pop("storage_state", None)
         if cookies and not kwargs.get("user_data_dir"):
             kwargs["storage_state"] = self._to_storage_state(cookies)
-        kwargs["user_agent"] = self.random_ua()
+        # 注意：Chromium 内核必须配 Chrome 系 UA——Firefox UA 会与
+        # TLS/JS 指纹矛盾，反而暴露自动化痕迹。这里从父类 UA 池中
+        # 过滤出 Chrome 系再随机。
+        kwargs["user_agent"] = random.choice(
+            [ua for ua in self.USER_AGENTS if "Chrome" in ua and "Firefox" not in ua]
+        )
         return kwargs
 
     async def _search_async(
@@ -274,6 +323,22 @@ class PlaywrightCrawler(BaseCrawler):
                             "请先通过 POST /api/v1/session/import 导入登录 cookie，"
                             "或用 POST /api/v1/session/qr-login 扫码登录"
                         )
+                # 无论走 API 还是 DOM 路径，都从 DOM 收集一次"想要数"：
+                # 服务端已不再通过 mtop API 下发 wantNum（30/30 条恒为 0），
+                # 该数据现在只呈现在页面卡片文本（"N人想要"）中。
+                dom_wants = await self._collect_dom_wants(page)
+                if dom_wants and products:
+                    filled = 0
+                    for p_ in products:
+                        w = dom_wants.get(p_.xianyu_id)
+                        if w and not p_.want_count:
+                            p_.want_count = w
+                            filled += 1
+                    logger.info(
+                        "PlaywrightCrawler(想要数回填): DOM %d 项, 回填 %d/%d 商品",
+                        len(dom_wants), filled, len(products),
+                    )
+                if not products:
                     payload = await page.evaluate(_EXTRACT_JS, 30)
                     items = payload.get("items", []) if isinstance(payload, dict) else []
                     for it in items:
@@ -305,6 +370,12 @@ class PlaywrightCrawler(BaseCrawler):
                         break
 
                     new_items = list(api_products)
+                    # 翻页页同样回填 DOM 想要数
+                    page_wants = await self._collect_dom_wants(page)
+                    for p_ in new_items:
+                        w = page_wants.get(p_.xianyu_id)
+                        if w and not p_.want_count:
+                            p_.want_count = w
                     if not new_items:
                         payload = await page.evaluate(_EXTRACT_JS, 30)
                         for it in (payload.get("items", []) if isinstance(payload, dict) else []):
@@ -318,6 +389,7 @@ class PlaywrightCrawler(BaseCrawler):
                                 price=parse_price_str(it.get("price", "")),
                                 area=it.get("location", ""),
                                 link=it.get("url", ""),
+                                want_count=int(it.get("want_count") or 0),
                                 category=category or "",
                             ))
                     logger.info("PlaywrightCrawler(第%d页): +%d products", page_no, len(new_items))

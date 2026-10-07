@@ -62,12 +62,8 @@ async def main() -> None:
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(**browser_launch_kwargs(p.chromium))
-        ctx = await browser.new_context(
-            **context_kwargs(cookies),
-            viewport={"width": 1440, "height": 900},
-            locale="zh-CN",
-            timezone_id="Asia/Shanghai",
-        )
+        # context_kwargs 已含 viewport/locale/timezone_id，不重复传
+        ctx = await browser.new_context(**context_kwargs(cookies))
         page = await ctx.new_page()
 
         async def on_response(response):
