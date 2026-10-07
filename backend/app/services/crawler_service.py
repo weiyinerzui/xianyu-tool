@@ -37,16 +37,26 @@ class CrawlerService:
     ) -> tuple[list[CrawledProduct], str]:
         """执行采集，返回 (商品列表, 使用的采集器名)。
 
-        L1 → L2 降级策略。
+        L1 → L2 降级策略：
+        - L1 彻底失败 → L2 全量采集
+        - L1 成功但想要数全 0 → 数据残缺（服务端已停发 wantNum），
+          继续 L2 采集拿完整数据（L2 会从 DOM 回填想要数）
         """
         # L1: httpx
         try:
             products = await self.httpx_crawler.search(keyword, category)
             if products:
-                logger.info("L1 success: %d products for '%s'", len(products), keyword)
-                if db:
-                    await self._save_products(products, keyword, db)
-                return products, "httpx"
+                all_zero_want = all(p.want_count == 0 for p in products)
+                if not all_zero_want:
+                    logger.info("L1 success: %d products for '%s'", len(products), keyword)
+                    if db:
+                        await self._save_products(products, keyword, db)
+                    return products, "httpx"
+                logger.info(
+                    "L1 拿到 %d 条但想要数全 0（服务端停发 wantNum），升级到 L2",
+                    len(products),
+                )
+                self.last_error = ""
         except Exception as e:
             logger.warning("L1 failed for '%s': %s", keyword, e)
             self.last_error = f"L1 httpx 失败：{e}"
