@@ -39,6 +39,11 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Probe / diagnostic artifacts (user-machine outputs, not for repo)
+backend/scripts/probe_out/
+backend/scripts/_sample_response.json
+backend/scripts/_l2_sample_response.json
+
 # Build artifacts
 build/
 *.tmp
