@@ -25,6 +25,7 @@ class ProductSnapshot(Base):
     xianyu_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     want_count: Mapped[int] = mapped_column(Integer, default=0)
     view_count: Mapped[int] = mapped_column(Integer, default=0)
+    collect_count: Mapped[int] = mapped_column(Integer, default=0)
     price: Mapped[float] = mapped_column(Float, default=0)
     captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True, default=datetime.utcnow)
 
@@ -39,6 +40,7 @@ class ProductSnapshot(Base):
             "xianyu_id": self.xianyu_id,
             "want_count": self.want_count,
             "view_count": self.view_count,
+            "collect_count": self.collect_count,
             "price": self.price,
             "captured_at": self.captured_at.isoformat() if self.captured_at else None,
         }

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, Integer, JSON, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -20,6 +20,13 @@ class Product(Base):
     original_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     want_count: Mapped[int] = mapped_column(Integer, default=0)
     view_count: Mapped[int] = mapped_column(Integer, default=0)
+    collect_count: Mapped[int] = mapped_column(Integer, default=0)
+    # v0.5.0 类型化选品（Phase 0 探针确认）：cCatId 聚合主键（GRANULAR）、
+    # tbCatId 仅存档（覆盖差）；rank_position 记录搜索页排名（1 起）
+    c_cat_id: Mapped[str] = mapped_column(String(50), default="", index=True)
+    tb_cat_id: Mapped[str] = mapped_column(String(50), default="")
+    rank_position: Mapped[int] = mapped_column(Integer, default=0)
+    detail_enriched: Mapped[bool] = mapped_column(Boolean, default=False)
     seller_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     seller_level: Mapped[str | None] = mapped_column(String(50), nullable=True)
     area: Mapped[str | None] = mapped_column(String(100), nullable=True)

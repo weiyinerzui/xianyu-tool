@@ -26,6 +26,10 @@ class CrawlerService:
     def __init__(self) -> None:
         self.httpx_crawler = HttpxCrawler()
         self.playwright_crawler = PlaywrightCrawler()
+        # v0.5.0：深层采集（详情 API，httpx 权威源；懒 import 避免模块环）
+        from app.crawlers.detail_crawler import DetailCrawler
+
+        self.detail_crawler = DetailCrawler()
         # 最近一次采集失败原因（供 API 层回显，避免静默失败）
         self.last_error: str = ""
 
@@ -53,9 +57,16 @@ class CrawlerService:
                         await self._save_products(products, keyword, db)
                     return products, "httpx"
                 logger.info(
-                    "L1 拿到 %d 条但想要数全 0（服务端停发 wantNum），升级到 L2",
+                    "L1 拿到 %d 条但想要数全 0（服务端停发 wantNum），尝试详情 API enrich",
                     len(products),
                 )
+                # v0.5.0：先试详情 API enrich（httpx 权威源），失败才升级 L2 浏览器
+                ratio = await self._try_detail_enrich(products, keyword)
+                if ratio > 0:
+                    if db:
+                        await self._save_products(products, keyword, db)
+                    return products, "httpx+detail"
+                logger.info("详情 enrich 未命中，升级到 L2")
                 self.last_error = ""
         except Exception as e:
             logger.warning("L1 failed for '%s': %s", keyword, e)
@@ -76,6 +87,30 @@ class CrawlerService:
 
         logger.error("All levels failed for '%s': %s", keyword, self.last_error)
         return [], "none"
+
+    async def _try_detail_enrich(
+        self, products: list[CrawledProduct], keyword: str
+    ) -> float:
+        """用详情 API 给想要数全 0 的 L1 结果补数（v0.5.0 权威源）。
+
+        返回命中率（0=彻底失败应升级 L2；>0=至少部分命中）。
+        熔断/无 token/全部失败 → 返回 0，fall back 路径继续。
+        """
+        from app.config import settings
+        from app.crawlers.detail_crawler import enrich_top_products
+
+        top_k = int(getattr(settings, "detail_enrich_top_k", 20))
+        max_s = top_k / max(0.05, float(getattr(settings, "detail_qps", 0.3))) * 1.5
+        try:
+            ratio = await enrich_top_products(
+                self.detail_crawler, products, top_k=top_k, max_seconds=max_s
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("详情 enrich 异常（忽略，走 L2）: %s", e)
+            return 0.0
+        if ratio > 0:
+            logger.info("详情 enrich 命中 %.0f%%（keyword=%s）", ratio * 100, keyword)
+        return ratio
 
     async def _save_products(
         self, products: list[CrawledProduct], keyword: str, db: AsyncSession
@@ -115,6 +150,14 @@ class CrawlerService:
                 # 更新动态字段，并写入快照
                 existing.want_count = cp.want_count
                 existing.price = cp.price
+                existing.view_count = cp.view_count
+                existing.collect_count = cp.collect_count
+                if cp.c_cat_id:
+                    existing.c_cat_id = cp.c_cat_id
+                if cp.tb_cat_id:
+                    existing.tb_cat_id = cp.tb_cat_id
+                existing.rank_position = cp.rank_position
+                existing.detail_enriched = cp.detail_enriched
                 existing.fetched_at = now
                 target = existing
             else:
@@ -125,6 +168,11 @@ class CrawlerService:
                     original_price=cp.original_price,
                     want_count=cp.want_count,
                     view_count=cp.view_count,
+                    collect_count=cp.collect_count,
+                    c_cat_id=cp.c_cat_id,
+                    tb_cat_id=cp.tb_cat_id,
+                    rank_position=cp.rank_position,
+                    detail_enriched=cp.detail_enriched,
                     seller_name=cp.seller_name,
                     seller_level=cp.seller_level,
                     area=cp.area,
@@ -143,6 +191,7 @@ class CrawlerService:
                 xianyu_id=cp.xianyu_id,
                 want_count=cp.want_count,
                 view_count=cp.view_count,
+                collect_count=cp.collect_count,
                 price=cp.price,
                 captured_at=now,
             ))

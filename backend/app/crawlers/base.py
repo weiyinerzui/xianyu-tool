@@ -69,13 +69,26 @@ def safe_get(data: Any, *keys, default: Any = None) -> Any:
 
 @dataclass
 class CrawledProduct:
-    """采集到的商品数据。"""
+    """采集到的商品数据。
+
+    v0.5.0 类型化选品：新增结构化字段（来源=搜索响应 clickParam.args，Phase 0 探针确认）：
+    - c_cat_id：闲鱼类目 ID（聚合主键，粒度 GRANULAR 已验证；tbCatId 缺失率高弃用）
+    - tb_cat_id：淘宝类目 ID（仅存档，不参与聚合——覆盖差）
+    - rank_position：本搜索页排名（1 起；首页可见性偏差需在报告中声明）
+    - collect_count：收藏数（详情 API 权威源）
+    - detail_enriched：字段是否来自详情 API enrich（区分权威源与兜底 DOM 值）
+    """
     xianyu_id: str = ""
     title: str = ""
     price: float = 0.0
     original_price: float | None = None
     want_count: int = 0
     view_count: int = 0
+    collect_count: int = 0
+    c_cat_id: str = ""
+    tb_cat_id: str = ""
+    rank_position: int = 0
+    detail_enriched: bool = False
     seller_name: str = ""
     seller_level: str = ""
     area: str = ""
@@ -87,13 +100,18 @@ class CrawledProduct:
     raw: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "xianyu_id": self.xianyu_id,
             "title": self.title,
             "price": self.price,
             "original_price": self.original_price,
             "want_count": self.want_count,
             "view_count": self.view_count,
+            "collect_count": self.collect_count,
+            "c_cat_id": self.c_cat_id,
+            "tb_cat_id": self.tb_cat_id,
+            "rank_position": self.rank_position,
+            "detail_enriched": self.detail_enriched,
             "seller_name": self.seller_name,
             "seller_level": self.seller_level,
             "area": self.area,
@@ -103,6 +121,7 @@ class CrawledProduct:
             "link": self.link,
             "publish_time": self.publish_time.isoformat() if self.publish_time else None,
         }
+        return d
 
 
 def parse_price_str(price_str: str) -> float:
@@ -176,6 +195,10 @@ def parse_search_api_json(json_data: dict, category: str = "") -> list[CrawledPr
             except (ValueError, TypeError):
                 want_count = 0
 
+            # v0.5.0 结构化字段（clickParam.args；Phase 0 探针确认存在）
+            c_cat_id = str(click_params.get("cCatId", "") or "")
+            tb_cat_id = str(click_params.get("tbCatId", "") or "")
+
             # 标签
             tags: list[str] = []
             if safe_get(click_params, "tag") == "freeship":
@@ -199,6 +222,9 @@ def parse_search_api_json(json_data: dict, category: str = "") -> list[CrawledPr
                 price=price,
                 original_price=original_price if original_price else None,
                 want_count=want_count,
+                c_cat_id=c_cat_id,
+                tb_cat_id=tb_cat_id,
+                rank_position=len(products) + 1,
                 seller_name=str(seller),
                 area=str(area),
                 category=category,

@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     limiter_max_writes_per_minute: int = 1
     guard_circuit_break_minutes: int = 10
 
+    # v0.5.0 详情 API（Phase 0 探针：211ms/次，登录 cookie 下成功）
+    detail_qps: float = 0.3  # ≈3.3s/次
+    detail_risk_break_seconds: float = 300.0  # RGV587 等触发后熔断时长
+    detail_enrich_top_k: int = 20  # 每词采集后 enrich 的商品数上限
+
     # 评分权重
     weight_want_velocity: float = 0.35
     weight_price_advantage: float = 0.25
